@@ -89,6 +89,7 @@ flutter build apk --release
 ```bash
 flutter run
 ```
+---
 ## 🔄 Publicar nova versão no GitHub
 
 1️⃣ Gere o APK:
@@ -104,7 +105,7 @@ flutter run
    build/app/outputs/flutter-apk/app-release.apk
 
 # 5️⃣ O app detectará automaticamente a nova versão e mostrará o alerta de atualização 🚀
-
+---
 ## 🧩 Estrutura do Projeto
 ```bash
 lib/
