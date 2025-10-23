@@ -43,16 +43,6 @@ Gerencie nome, e-mail, foto e logout — sincronizado com Firestore e cache loca
 
 ---
 
-## 📱 Capturas de Tela (Exemplo)
-
-| Dashboard | Calculadora | Perfil |
-|:----------:|:------------:|:--------:|
-| ![Dashboard](docs/screens/dashboard.png) | ![Calculadora](docs/screens/calculadora.png) | ![Perfil](docs/screens/perfil.png) |
-
-> 💡 Coloque suas imagens em `docs/screens/` e altere os caminhos acima conforme necessário.
-
----
-
 ## ⚙️ Instalação e Execução
 
 ### 1️⃣ Clonar o repositório
@@ -130,6 +120,7 @@ lib/
  └── widgets/
      └── ...
 ```
+---
 ## 💜 Desenvolvido com Flutter por Wesley Paredes
 # 📧 E-mail: wesleyzbr@outlook.com
 # 🌐 GitHub: https://github.com/wesleyparedes
