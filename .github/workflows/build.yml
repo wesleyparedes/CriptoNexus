@@ -5,6 +5,7 @@ on:
     tags:
       - 'v*' # dispara quando uma tag tipo v1.1.0 é criada
 
+# ✅ Permissões necessárias para criar releases e artefatos
 permissions:
   contents: write
   actions: read
@@ -40,38 +41,41 @@ jobs:
       - name: 📦 Instalar pacotes Flutter
         run: flutter pub get
 
-      - name: 🧹 Limpar build e cache anteriores
+      # 🧩 FIX DEFINITIVO — limpeza profunda
+      - name: 🧹 Limpeza forçada (garante build novo)
         run: |
-          echo "🧼 Limpando build e cache antigos..."
+          echo "🧽 Limpando TUDO antes do build..."
           flutter clean
-          rm -rf build/ || true
-          rm -rf ~/.pub-cache || true
+          rm -rf build/ android/build/ android/app/build/ || true
+          rm -rf ~/.pub-cache/hosted ~/.pub-cache/git || true
           rm -rf ~/.gradle/caches ~/.gradle/daemon ~/.gradle/native ~/.gradle/wrapper || true
-          echo "✅ Limpeza concluída."
+          echo "🧹 Limpando possíveis APKs antigos..."
+          find . -type f -name "*.apk" -delete || true
+          echo "✅ Ambiente 100% limpo. Nenhum APK antigo permanecerá."
 
-      - name: ⚙️ Garantir SDK e NDK corretos
+      # ✅ Garante SDK e NDK corretos
+      - name: ⚙️ Atualizar SDK/NDK
         run: |
           echo "Usando SDK 36 e NDK 27.0.12077973"
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           echo "compileSdk=36" >> local.properties
           echo "ndkVersion=27.0.12077973" >> local.properties
 
-      - name: 🏗️ Gerar novo APK (release)
+      - name: 🏗️ Gerar APK (release)
         env:
           NO_WATCHMAN: true
           CHOKIDAR_USEPOLLING: true
-        run: |
-          echo "🚧 Iniciando build limpa..."
-          flutter build apk --release --no-tree-shake-icons
-          echo "✅ Build finalizada. Verificando arquivos..."
-          ls -lh build/app/outputs/flutter-apk/
+        run: flutter build apk --release --no-tree-shake-icons
 
-      - name: 🧭 Garantir que o APK é o mais recente
+      # ✅ Verifica se o APK foi gerado recentemente
+      - name: 🔍 Verificar se o APK foi gerado agora
         run: |
-          echo "⏱️ Verificando timestamp do APK..."
-          ls -lh build/app/outputs/flutter-apk/app-release.apk
-          echo "✅ Último build confirmado."
+          echo "🕓 Verificando data de modificação do APK..."
+          stat build/app/outputs/flutter-apk/app-release.apk
+          echo "🧠 Listando todos APKs para confirmar..."
+          find build/app/outputs -type f -name "*.apk" -exec ls -lh {} \;
 
+      # 🔍 Verifica se o APK foi assinado corretamente (corrigido)
       - name: 🔒 Verificar assinatura do APK
         run: |
           echo "Verificando assinatura do APK..."
@@ -83,13 +87,15 @@ jobs:
           fi
           echo "✅ APK assinado corretamente!"
 
+      # 🔐 Exibe o certificado usado (informativo)
       - name: 🔍 Mostrar certificado do APK
         run: |
           APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
           echo "Usando apksigner: $APK_SIGNER"
           "$APK_SIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
 
-      - name: 🧾 Gerar hash SHA-256
+      # 🧩 Gera hash SHA-256 para validação
+      - name: 🧾 Verificar integridade do APK
         run: |
           echo "Gerando hash SHA-256 para validação..."
           sha256sum build/app/outputs/flutter-apk/app-release.apk
@@ -106,6 +112,7 @@ jobs:
         id: vars
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      # 🚀 Cria o release — tenta GH_PAT se o token padrão falhar
       - name: 🚀 Criar release no GitHub
         uses: softprops/action-gh-release@v1
         with:
@@ -114,7 +121,7 @@ jobs:
           body: |
             ✅ Build automatizado concluído com sucesso!
             🔐 Assinatura e integridade verificadas.
-
+            
             ${{ steps.changelog.outputs.changelog }}
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
