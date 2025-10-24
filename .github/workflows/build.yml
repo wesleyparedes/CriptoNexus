@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*' # dispara quando uma tag tipo v1.1.0 é criada
 
-# ✅ Dá permissão pro workflow criar releases e subir artefatos
+# ✅ Permissões globais — necessárias para criar releases
 permissions:
   contents: write
   actions: read
@@ -48,6 +48,7 @@ jobs:
       - name: ⚙️ Atualizar SDK/NDK
         run: |
           echo "Usando SDK 36 e NDK 27.0.12077973"
+          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           echo "compileSdk=36" >> local.properties
           echo "ndkVersion=27.0.12077973" >> local.properties
 
@@ -90,6 +91,7 @@ jobs:
         id: vars
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      # 🚀 Corrigido: tenta GH_PAT se existir (resolve erro 403)
       - name: 🚀 Criar release no GitHub
         uses: softprops/action-gh-release@v1
         with:
@@ -102,7 +104,7 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: ✅ Finalização
         run: echo "🎉 Build e release concluídos com sucesso!"
