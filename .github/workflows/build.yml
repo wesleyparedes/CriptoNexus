@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*' # dispara quando uma tag tipo v1.1.0 é criada
 
-# ✅ Permissões globais — necessárias para criar releases
+# ✅ Permissões necessárias para criar releases e artefatos
 permissions:
   contents: write
   actions: read
@@ -44,7 +44,7 @@ jobs:
       - name: 🧹 Limpar build anterior
         run: flutter clean
 
-      # ✅ Atualiza SDK e NDK antes do build
+      # ✅ Garante SDK e NDK corretos
       - name: ⚙️ Atualizar SDK/NDK
         run: |
           echo "Usando SDK 36 e NDK 27.0.12077973"
@@ -58,22 +58,22 @@ jobs:
           CHOKIDAR_USEPOLLING: true
         run: flutter build apk --release --no-tree-shake-icons
 
-      # 🔍 Verifica se o APK foi realmente assinado
+      # 🔍 Verifica se o APK foi assinado corretamente
       - name: 🔒 Verificar assinatura do APK
         run: |
           echo "Verificando assinatura do APK..."
-          if ! ${ANDROID_HOME}/build-tools/*/apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
+          if ! apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
             echo "❌ Erro: APK não está assinado corretamente!"
             exit 1
           fi
           echo "✅ APK assinado corretamente!"
 
-      # 🔐 Verifica o certificado usado (log informativo)
+      # 🔐 Exibe o certificado usado (informativo)
       - name: 🔍 Mostrar certificado do APK
         run: |
-          ${ANDROID_HOME}/build-tools/*/apksigner verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+          apksigner verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
 
-      # 🧩 Confere integridade (gera hash SHA-256)
+      # 🧩 Gera hash SHA-256 para validação
       - name: 🧾 Verificar integridade do APK
         run: |
           echo "Gerando hash SHA-256 para validação..."
@@ -91,7 +91,7 @@ jobs:
         id: vars
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      # 🚀 Corrigido: tenta GH_PAT se existir (resolve erro 403)
+      # 🚀 Cria o release — tenta GH_PAT se o token padrão falhar
       - name: 🚀 Criar release no GitHub
         uses: softprops/action-gh-release@v1
         with:
