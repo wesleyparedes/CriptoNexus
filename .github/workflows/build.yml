@@ -47,14 +47,36 @@ jobs:
       # ✅ Atualiza SDK e NDK antes do build
       - name: ⚙️ Atualizar SDK/NDK
         run: |
-          echo "compileSdk=35"
-          echo "ndkVersion=27.0.12077973"
+          echo "Usando SDK 36 e NDK 27.0.12077973"
+          echo "compileSdk=36" >> local.properties
+          echo "ndkVersion=27.0.12077973" >> local.properties
 
       - name: 🏗️ Gerar APK (release)
         env:
           NO_WATCHMAN: true
           CHOKIDAR_USEPOLLING: true
         run: flutter build apk --release --no-tree-shake-icons
+
+      # 🔍 Verifica se o APK foi realmente assinado
+      - name: 🔒 Verificar assinatura do APK
+        run: |
+          echo "Verificando assinatura do APK..."
+          if ! ${ANDROID_HOME}/build-tools/*/apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
+            echo "❌ Erro: APK não está assinado corretamente!"
+            exit 1
+          fi
+          echo "✅ APK assinado corretamente!"
+
+      # 🔐 Verifica o certificado usado (log informativo)
+      - name: 🔍 Mostrar certificado do APK
+        run: |
+          ${ANDROID_HOME}/build-tools/*/apksigner verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+
+      # 🧩 Confere integridade (gera hash SHA-256)
+      - name: 🧾 Verificar integridade do APK
+        run: |
+          echo "Gerando hash SHA-256 para validação..."
+          sha256sum build/app/outputs/flutter-apk/app-release.apk
 
       - name: 📝 Gerar changelog automático
         id: changelog
@@ -73,10 +95,14 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: "CriptoNexus ${{ env.TAG_NAME }}"
-          body: ${{ steps.changelog.outputs.changelog }}
+          body: |
+            ✅ Build automatizado concluído com sucesso!
+            🔐 Assinatura e integridade verificadas.
+            
+            ${{ steps.changelog.outputs.changelog }}
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ✅ Finalização
-        run: echo "Build e release concluídos com sucesso! 🎉"
+        run: echo "🎉 Build e release concluídos com sucesso!"
