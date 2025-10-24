@@ -1,0 +1,46 @@
+name: 🚀 Build & Release CriptoNexus
+
+on:
+  push:
+    tags:
+      - 'v*' # dispara quando criar uma tag tipo v1.0.8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clonar repositório
+        uses: actions/checkout@v4
+
+      - name: 🔧 Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+
+      - name: 📦 Instalar dependências
+        run: flutter pub get
+
+      - name: 🧹 Limpar cache antigo
+        run: flutter clean
+
+      - name: 🏗️ Gerar APK (Release)
+        run: flutter build apk --release
+
+      - name: 📦 Calcular nome da versão
+        id: vars
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: 📤 Upload APK para o Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "CriptoNexus ${{ env.TAG_NAME }}"
+          body: |
+            ## 📜 Changelog
+            - 🚀 Build automático gerado via GitHub Actions.
+            - 🔧 Correções nas configurações Gradle e suporte Flutter 3.24.
+            - 📱 Novo comparador de versões e melhorias de desempenho.
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
