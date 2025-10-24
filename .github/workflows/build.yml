@@ -58,11 +58,13 @@ jobs:
           CHOKIDAR_USEPOLLING: true
         run: flutter build apk --release --no-tree-shake-icons
 
-      # 🔍 Verifica se o APK foi assinado corretamente
+      # 🔍 Verifica se o APK foi assinado corretamente (corrigido)
       - name: 🔒 Verificar assinatura do APK
         run: |
           echo "Verificando assinatura do APK..."
-          if ! apksigner verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
+          APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
+          echo "Usando apksigner: $APK_SIGNER"
+          if ! "$APK_SIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
             echo "❌ Erro: APK não está assinado corretamente!"
             exit 1
           fi
@@ -71,7 +73,9 @@ jobs:
       # 🔐 Exibe o certificado usado (informativo)
       - name: 🔍 Mostrar certificado do APK
         run: |
-          apksigner verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+          APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
+          echo "Usando apksigner: $APK_SIGNER"
+          "$APK_SIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
 
       # 🧩 Gera hash SHA-256 para validação
       - name: 🧾 Verificar integridade do APK
@@ -85,7 +89,7 @@ jobs:
         with:
           configuration: ".github/changelog_config.json"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: 🏷️ Definir tag atual
         id: vars
