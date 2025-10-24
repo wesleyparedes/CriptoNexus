@@ -1,0 +1,93 @@
+// =====================================================
+// 🏗️ build.gradle (app) — Flutter 3.24 + Gradle 8.11.1 + SDK 35 + NDK 27 (VERSÃO FINAL)
+// =====================================================
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
+android {
+    namespace "com.criptonexus.app"
+
+    // ✅ Atualizado para compatibilidade com plugins modernos
+    compileSdk 35
+    ndkVersion "27.0.12077973"
+
+    compileOptions {
+        // ✅ Java 11 = compatível com todas as libs recentes
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    defaultConfig {
+        applicationId "com.criptonexus.app"
+        // ✅ Mantém as versões do Flutter (ajustadas automaticamente)
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // 🚫 shrinkResources precisa de minifyEnabled para funcionar
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+        }
+
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    // ✅ Nome fixo para o APK (Flutter + GitHub Actions dependem disso)
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "app-${variant.name}.apk"
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    // ✅ Necessário para o desugaring (Java moderno)
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+}
+
+// =====================================================
+// 🧩 FIX FINAL: Copia o APK para o caminho que o Flutter espera
+// =====================================================
+tasks.whenTaskAdded { task ->
+    if (task.name == "assembleRelease" || task.name == "assembleDebug") {
+        task.doLast {
+            def buildType = task.name.contains('Release') ? 'release' : 'debug'
+            def generatedApk = file("$buildDir/outputs/apk/${buildType}/app-${buildType}.apk")
+            def flutterApkDir = file("$projectDir/../../build/app/outputs/flutter-apk/")
+            def flutterApk = file("${flutterApkDir}/app-${buildType}.apk")
+
+            if (generatedApk.exists()) {
+                flutterApkDir.mkdirs()
+                copy {
+                    from generatedApk
+                    into flutterApkDir
+                    rename { "app-${buildType}.apk" }
+                }
+                println("✅ Copiado APK para: ${flutterApk}")
+            } else {
+                println("⚠️ APK não encontrado: ${generatedApk}")
+            }
+        }
+    }
+}
