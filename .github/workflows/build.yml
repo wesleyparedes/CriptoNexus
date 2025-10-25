@@ -1,0 +1,115 @@
+name: Build & Auto Release CriptoNexus
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+  deployments: read
+  issues: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          cache: true
+
+      - name: Esperar ambiente estabilizar
+        run: sleep 10
+
+      - name: Instalar dependências do sistema
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Instalar pacotes Flutter
+        run: flutter pub get
+
+      - name: Limpeza forçada
+        run: |
+          echo "Limpando ambiente..."
+          flutter clean
+          rm -rf build/ android/build/ android/app/build/ || true
+          rm -rf ~/.pub-cache/hosted ~/.pub-cache/git || true
+          rm -rf ~/.gradle/caches ~/.gradle/daemon ~/.gradle/native ~/.gradle/wrapper || true
+          find . -type f -name "*.apk" -delete || true
+          echo "Ambiente limpo."
+
+      - name: Atualizar SDK/NDK
+        run: |
+          echo "Usando SDK 36 e NDK 27.0.12077973"
+          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
+          echo "compileSdk=36" >> local.properties
+          echo "ndkVersion=27.0.12077973" >> local.properties
+
+      - name: Gerar APK (release)
+        env:
+          NO_WATCHMAN: true
+          CHOKIDAR_USEPOLLING: true
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Verificar se o APK foi gerado agora
+        run: |
+          stat build/app/outputs/flutter-apk/app-release.apk
+          find build/app/outputs -type f -name "*.apk" -exec ls -lh {} \;
+
+      - name: Verificar assinatura do APK
+        run: |
+          APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
+          if ! "$APK_SIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk; then
+            echo "Erro: APK não está assinado corretamente!"
+            exit 1
+          fi
+          echo "APK assinado corretamente!"
+
+      - name: Mostrar certificado do APK
+        run: |
+          APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
+          "$APK_SIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Verificar integridade do APK
+        run: sha256sum build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Gerar changelog automático
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v3
+        with:
+          configuration: ".github/changelog_config.json"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Definir tag atual
+        id: vars
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Criar release no GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "CriptoNexus ${{ env.TAG_NAME }}"
+          body: |
+            Build automatizado concluído com sucesso!
+            Assinatura e integridade verificadas.
+            
+            ${{ steps.changelog.outputs.changelog }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Finalização
+        run: echo "Build e release concluídos com sucesso!"

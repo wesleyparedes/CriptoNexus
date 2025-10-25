@@ -1,0 +1,94 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
+def keystoreProperties = new Properties()
+def keystoreFile = rootProject.file("key.properties")
+if (keystoreFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystoreFile))
+}
+
+android {
+    namespace "com.criptonexus.app"
+    compileSdk 36
+    ndkVersion "27.0.12077973"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    defaultConfig {
+        applicationId "com.criptonexus.app"
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties["keyAlias"]
+            keyPassword keystoreProperties["keyPassword"]
+            storeFile file(keystoreProperties["storeFile"])
+            storePassword keystoreProperties["storePassword"]
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "app-${variant.name}.apk"
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name == "assembleRelease" || task.name == "assembleDebug") {
+        task.doLast {
+            def buildType = task.name.contains('Release') ? 'release' : 'debug'
+            def generatedApk = file("$buildDir/outputs/apk/${buildType}/app-${buildType}.apk")
+            def flutterApkDir = file("$projectDir/../../build/app/outputs/flutter-apk/")
+            def flutterApk = file("${flutterApkDir}/app-${buildType}.apk")
+
+            if (generatedApk.exists()) {
+                flutterApkDir.mkdirs()
+                copy {
+                    from generatedApk
+                    into flutterApkDir
+                    rename { "app-${buildType}.apk" }
+                }
+                println("✅ Copiado APK para: ${flutterApk}")
+            } else {
+                println("⚠️ APK não encontrado: ${generatedApk}")
+            }
+        }
+    }
+}
